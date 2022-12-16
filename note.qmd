@@ -9,20 +9,27 @@ library(arrow)
 library(dplyr)
 ```
 
+```{r}
+pins_resources_local <-
+  pins::board_folder(here::here("data-raw"))
+```
 
 ## 断面交通量情報データ
 
 ### 元データ（CSV）のサイズ
 
 ```{r}
+#| include: false
 df_my_dropbox <- 
-  rdrop2::drop_dir("resources/日本道路交通情報センター/B_断面交通量情報") |> 
-  filter(.tag == "file") |> 
-  select(name, size) |> 
-  ensurer::ensure(nrow(.) == 51 * 35)
-# glimpse(df_my_dropbox)
-# tibble::tibble(
-#   size = R.utils::hsize(df_my_dropbox$size, units = "MB"))
-R.utils::hsize(sum(df_my_dropbox$size), units = "GB") # 405.4 GB
+  pins_resources_local |> 
+  pins::pin_read("typeB_zip_files") |> 
+  dplyr::mutate(size = fs::as_fs_bytes(size))
 ```
 
+```{r}
+#| eval: true
+#| echo: false
+sum(df_my_dropbox$size, 
+    fs::as_fs_bytes("4.13GB"), 
+    fs::as_fs_bytes("4.3GB"))
+```

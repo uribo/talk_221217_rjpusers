@@ -1,8 +1,9 @@
 file: typeB_zip_files.csv
-file_size: 85386
-pin_hash: 9e4aacfbb8588769
+file_size: 87369
+pin_hash: df2bb17405b29c58
 type: csv
 title: 'typeB_zip_files: a pinned 2346 x 2 data frame'
 description: Dropboxに蓄積している断面交通量情報データのファイルサイズ
-created: 20221215T140554Z
+tags: ~
+created: 20221216T000955Z
 api_version: 1.0
