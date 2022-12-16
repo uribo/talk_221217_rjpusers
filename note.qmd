@@ -16,7 +16,41 @@ pins_resources_local <-
 
 ## 断面交通量情報データ
 
+- 公益財団法人日本道路交通情報センター https://www.jartic.or.jp が提供
+- 各都道府県警察が車両感知器などの計測機器で収集した断面交通量に関する情報を警察庁においてとりまとめたもの
+    - 毎月、都道府県警察(北海道警察は5方面)ごとに`.zip`ファイルを更新
+    
+```{r}
+#| eval: false
+#| echo: true
+# 日本道路交通情報センター提供のデータを読み込むパッケージ
+remotes::install_github("uribo/jarticr")
+```
+
+各ファイルの中身は次のようになっています。
+
+```{r}
+dplyr::glimpse(
+  jarticr::read_jartic_traffic(
+    here::here("data-raw/typeB_tokushima_2022_10/徳島県警_202210.csv"))
+)
+```
+
+- `datetime`: 時刻。5分単位で記録
+- `source_code`: 情報源コード
+- `location_no`: 計測地点番号
+- `location_name`: 計測地点名称
+- `meshcode10km`: 2次メッシュコード
+- `link_type`: リンク区分
+- `link_no`: リンク番号
+- `traffic`: 断面交通量。ある道路断面をある方向に通過する単位時間当たりの交通量（単位: 台）
+- `to_link_end_10m`: リンク終端からの距離
+- `link_ver`: リンクバージョン
+
+
 ### 元データ（CSV）のサイズ
+
+- 2018年11月から2022年10月のデータ48ヶ月（4年）分を収集
 
 ```{r}
 #| include: false
@@ -32,4 +66,136 @@ df_my_dropbox <-
 sum(df_my_dropbox$size, 
     fs::as_fs_bytes("4.13GB"), 
     fs::as_fs_bytes("4.3GB"))
+```
+
+```{r}
+#| eval: false
+#| echo: false
+# open_dataset("data/typeB/13_tokyo/year=2021/month=1") |>
+#   write_csv_arrow(file = "data/tokyo202101_small.csv")
+# open_dataset("data/typeB/13_tokyo/year=2021") |> 
+#   write_csv_arrow(file = "data/tokyo2021_medium.csv")
+# open_dataset(here::here("data/typeB/"),
+#                schema = jartic_typeB_schema) |> 
+#   filter(year == 2021) |> 
+#   write_csv_arrow(file = "data/all2021_large.csv")
+```
+
+```{r}
+#| eval: false
+#| echo: false
+# small: 東京都 1ヶ月分
+fs::dir_info(here::here("data/typeB/13_tokyo/year=2021/month=1/"),
+             recurse = TRUE,
+             regexp = ".parquet") |> 
+  pull(size) |> 
+  sum() # 102MB
+# medium: 東京都 12ヶ月分
+fs::dir_info(here::here("data/typeB/13_tokyo/year=2021/"),
+             recurse = TRUE,
+             regexp = ".parquet") |> 
+  pull(size) |> 
+  sum() # 1.17GB
+# large: 全国 12ヶ月（1年）分
+fs::dir_info(here::here("data/typeB/"),
+             recurse = TRUE,
+             regexp = "year=2021/month=.+/.+.parquet") |> 
+  pull(size) |> 
+  sum() # 13.5GB
+# huge: 全国 48ヶ月（4年）分
+fs::dir_info(here::here("data/typeB/"),
+             recurse = TRUE,
+             regexp = "year=.+/month=.+/.+.parquet") |> 
+  pull(size) |> 
+  sum() # 54.1G
+```
+
+## 評価の観点・タスク
+
+### 評価の観点
+
+10kmメッシュ
+
+## 処理1: データの読み込み
+
+### 1. 個別のファイル
+
+#### 1.1 csv
+
+::: {.panel-tabset}
+
+## Small
+
+```{r}
+#| eval: false
+#| echo: true
+tictoc::tic(); df_small <- readr::read_csv("data/tokyo202101_small.csv"); tictoc::toc()
+tictoc::tic(); dt_small <- data.table::fread("data/tokyo202101_small.csv"); tictoc::toc()
+tictoc::tic(); df_arw_small <- read_csv_arrow("data/tokyo202101_small.csv"); tictoc::toc()
+```
+
+## Medium
+
+```{r}
+#| eval: false
+#| echo: true
+tictoc::tic(); df_year <- readr::read_csv("data/tokyo2021_medium.csv"); tictoc::toc()
+tictoc::tic(); dt_year <- data.table::fread("data/tokyo2021_medium.csv"); tictoc::toc()
+tictoc::tic(); df_arw_year <- read_csv_arrow("data/tokyo2021_medium.csv"); tictoc::toc()
+```
+
+:::
+
+
+#### 1.2 parquet
+
+```{r}
+#| eval: false
+# data.tableの状態で保存したため、data.tableになっている
+read_parquet(here::here("data/typeB/36_tokushima/year=2022/month=10/part-0.parquet"))
+```
+
+
+
+### 2. 複数のファイル（parquetのみ）
+
+スキーマの指定
+
+```{r}
+jartic_typeB_schema = arrow::schema(
+  datetime = arrow::timestamp(unit = "ms", timezone = "Asia/Tokyo"),
+  source_code = arrow::utf8(),
+  location_no = arrow::int32(),
+  location_name = arrow::utf8(),
+  meshcode10km = arrow::utf8(),
+  link_type = arrow::int32(),
+  link_no = arrow::int32(),
+  traffic = arrow::int32(),
+  to_link_end_10m = arrow::utf8(),
+  link_ver = arrow::int32(),
+  year = arrow::int32(),
+  month = arrow::int32())
+```
+
+```{r}
+traffic_small <- 
+  open_dataset(here::here("data/typeB/13_tokyo/year=2021/month=1/"),
+               schema = jartic_typeB_schema)
+traffic_medium <-
+  open_dataset(here::here("data/typeB/13_tokyo/year=2021/"),
+               schema = jartic_typeB_schema)
+traffic_large <- 
+  open_dataset(here::here("data/typeB/"),
+               schema = jartic_typeB_schema) |> 
+  filter(year == 2021)
+traffic_huge <- 
+  open_dataset(here::here("data/typeB/"),
+               schema = jartic_typeB_schema)
+```
+
+
+## session information
+
+```{r}
+sessioninfo::session_info(info = "platform")
 ```
