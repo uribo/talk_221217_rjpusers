@@ -5,8 +5,9 @@ format: html
 
 ```{r}
 #| warning: false
-library(arrow)
-library(dplyr)
+library(arrow) # 10.0.1
+library(dplyr) # 1.0.10
+library(data.table) # 1.14.6
 ```
 
 ```{r}
@@ -32,8 +33,7 @@ remotes::install_github("uribo/jarticr")
 ```{r}
 dplyr::glimpse(
   jarticr::read_jartic_traffic(
-    here::here("data-raw/typeB_tokushima_2022_10/徳島県警_202210.csv"))
-)
+    here::here("data-raw/typeB_tokushima_2022_10/徳島県警_202210.csv")))
 ```
 
 - `datetime`: 時刻。5分単位で記録
@@ -127,21 +127,19 @@ fs::dir_info(here::here("data/typeB/"),
 ## Small
 
 ```{r}
-#| eval: false
-#| echo: true
-tictoc::tic(); df_small <- readr::read_csv("data/tokyo202101_small.csv"); tictoc::toc()
-tictoc::tic(); dt_small <- data.table::fread("data/tokyo202101_small.csv"); tictoc::toc()
-tictoc::tic(); df_arw_small <- read_csv_arrow("data/tokyo202101_small.csv"); tictoc::toc()
+df_benchmark_input_small <- 
+  pins_resources_local |> 
+  pins::pin_read("benchmark_input_small")
+df_benchmark_input_small
 ```
 
 ## Medium
 
 ```{r}
-#| eval: false
-#| echo: true
-tictoc::tic(); df_year <- readr::read_csv("data/tokyo2021_medium.csv"); tictoc::toc()
-tictoc::tic(); dt_year <- data.table::fread("data/tokyo2021_medium.csv"); tictoc::toc()
-tictoc::tic(); df_arw_year <- read_csv_arrow("data/tokyo2021_medium.csv"); tictoc::toc()
+df_benchmark_input_medium <- 
+  pins_resources_local |> 
+  pins::pin_read("benchmark_input_medium")
+df_benchmark_input_medium
 ```
 
 :::

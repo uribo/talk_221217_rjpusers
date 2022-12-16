@@ -1,0 +1,8 @@
+file: benchmark_input_medium.csv
+file_size: 190
+pin_hash: 9927a9e01cbae4d8
+type: csv
+title: 'benchmark_input_medium: a pinned 3 x 5 data frame'
+description: M1 Mac memory 64GBでmediumデータを読み込んだ結果
+created: 20221216T071755Z
+api_version: 1.0

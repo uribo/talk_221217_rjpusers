@@ -1,0 +1,4 @@
+"expression","min","median","mem_alloc","total_time"
+readr::read_csv, 2.15m, 2.3m,18.69GB, 7.38m
+data.table::fread,18.1s,19.9s,14.3GB,58.4s
+arrow::read_csv_arrow, 1.09m, 2.4m, 7.64GB, 6.61m

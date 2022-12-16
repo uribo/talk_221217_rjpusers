@@ -1,0 +1,8 @@
+file: benchmark_input_small.csv
+file_size: 288
+pin_hash: 749c42ec8a1679b0
+type: csv
+title: 'benchmark_input_small: a pinned 3 x 5 data frame'
+description: M1 Mac memory 64GBでsmallデータを読み込んだ結果
+created: 20221216T065450Z
+api_version: 1.0
