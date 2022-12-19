@@ -13,6 +13,7 @@ https://www.jartic.or.jp
 - R for Data Science (2nd edition) https://r4ds.hadley.nz/arrow.html
 - [Apache Arrowフォーマットはなぜ速いのか](https://slide.rabbit-shocker.org/authors/kou/db-tech-showcase-online-2020/)
 - [【R】Apache Arrowとduckdbを試してみる - Qiita](https://qiita.com/eitsupi/items/ce3e1b1fb0e45e0d45e3)
+- [Apache Arrow 鬼はええ！このままCSV全部Parquetに変換していこうぜ！](https://eitsupi.github.io/tokyorslide/tokyor_97/)
 - [Apache Arrow R Cookbook](https://arrow.apache.org/cookbook/r/index.html)
 - [Larger-Than-Memory Data Workflows with Apache Arrow](https://arrow-user2022.netlify.app)
 
