@@ -1,0 +1,8 @@
+file: mesh_jma_station.csv
+file_size: 171612
+pin_hash: ee68e45c06e316b4
+type: csv
+title: 'mesh_jma_station: a pinned 4779 x 4 data frame'
+description: 10kmメッシュに近傍の気象庁観測地点
+created: 20221216T153446Z
+api_version: 1.0
