@@ -111,6 +111,39 @@ fs::dir_info(here::here("data/typeB/"),
   sum() # 54.1G
 ```
 
+## {arrow}パッケージを使った処理の流れ
+
+```{r}
+# 単一のparquetファイルの読み込み
+d <- 
+  read_parquet(here::here("data/typeB/36_tokushima/year=2022/month=10/part-0.parquet"), 
+               # as_data_frame = FALSE で Arrowオブジェクトとしてメモリ内で処理を行う
+               as_data_frame = FALSE)
+
+# dplyrの関数を使ったデータ操作・集計
+res <- 
+  d |> 
+  select(location_no, location_name, 
+         meshcode10km, traffic) |> 
+  filter(meshcode10km %in% c("513424", "513403", "513404")) |> 
+  group_by(location_no, location_name) |> 
+  summarise(traffic_mean = mean(traffic, na.rm = TRUE),
+            .groups = "drop") |> 
+  arrange(desc(traffic_mean)) |> 
+  # データフレームとして返り値を得る
+  collect()
+
+res
+```
+
+
+## {duckdb}パッケージとの連携
+
+```{r}
+
+```
+
+
 ## 評価の観点・タスク
 
 ### 評価の観点
