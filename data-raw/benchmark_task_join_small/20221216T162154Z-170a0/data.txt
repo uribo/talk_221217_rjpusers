@@ -1,0 +1,8 @@
+file: benchmark_task_join_small.csv
+file_size: 399
+pin_hash: 170a0318842cbbc2
+type: csv
+title: 'benchmark_task_join_small: a pinned 5 x 5 data frame'
+description: M1 Mac memory 64GBでsmallデータを読み込んだ結果
+created: 20221216T162154Z
+api_version: 1.0

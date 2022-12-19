@@ -1,0 +1,9 @@
+file: benchmark_task_join_medium.csv
+file_size: 371
+pin_hash: 97597b6cc7f618f0
+type: csv
+title: 'benchmark_task_join_medium: a pinned 5 x 5 data frame'
+description: M1 Mac memory 64GBでmediumデータを読み込んだ結果
+tags: ~
+created: 20221216T215528Z
+api_version: 1.0

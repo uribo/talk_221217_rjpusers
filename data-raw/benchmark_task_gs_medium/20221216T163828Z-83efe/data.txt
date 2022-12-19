@@ -1,0 +1,9 @@
+file: benchmark_task_gs_medium.csv
+file_size: 389
+pin_hash: 83efe2ad4e25db99
+type: csv
+title: 'benchmark_task_gs_medium: a pinned 5 x 5 data frame'
+description: M1 Mac memory 64GBでsmallデータを読み込んだ結果
+tags: ~
+created: 20221216T163828Z
+api_version: 1.0

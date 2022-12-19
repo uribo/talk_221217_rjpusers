@@ -1,0 +1,9 @@
+file: benchmark_task_gs_all.csv
+file_size: 312
+pin_hash: 4413551f8e065770
+type: csv
+title: 'benchmark_task_gs_all: a pinned 4 x 5 data frame'
+description: M1 Mac memory 64GBで4種のサイズのデータを読み込んだ結果
+tags: ~
+created: 20221217T033335Z
+api_version: 1.0
