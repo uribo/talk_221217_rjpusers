@@ -1,7 +1,7 @@
 ################################
 # Dropboxに蓄積している断面交通量情報データのファイルサイズ
 ################################
-# remotes::install_github("rstudio/pins") # SHA: 18e9ba8
+# remotes::install_github("rstudio/pins", ref = "18e9ba8")
 # csvを読み込んだ際に stringsAsFactors = FALSE とするため
 pins_resources_local <- 
   pins::board_folder(here::here("data-raw"))
