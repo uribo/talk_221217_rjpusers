@@ -12,6 +12,10 @@ Rによる大規模データの処理
 
 ![](images/cover.jpeg)
 
+## 補足資料
+
+- [arrow導入編](https://uribo.quarto.pub/hello-r-arrow/)
+- [ベンチマーク編](https://uribo.quarto.pub/arrow-speed-benchmark/)
 
 ## データ
 

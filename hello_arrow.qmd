@@ -10,7 +10,9 @@ code-fold: false
 この文書は2022年12月17日に開催された[R研究集会2022](https://rjpusers.connpass.com/event/266841/)での発表「Rによる大規模データの処理」の補足資料です。
 発表の中で扱った`{arrow}`パッケージの使い方を紹介します。
 
-スライド: https://speakerdeck.com/s_uryu/introduction-to-r-arrow
+スライド: [https://speakerdeck.com/s_uryu/introduction-to-r-arrow](https://speakerdeck.com/s_uryu/introduction-to-r-arrow)
+
+[ベンチマーク編](https://uribo.quarto.pub/arrow-speed-benchmark/)
 
 ## パッケージの読み込み
 

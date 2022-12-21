@@ -1,0 +1,8 @@
+- source: hello_arrow.qmd
+  quarto-pub:
+    - id: 41aa9f4f-7c5d-4bdb-bb42-0883706f7fbd
+      url: 'https://quartopub.com/sites/uribo/hello-r-arrow'
+- source: speed_benchmark.qmd
+  quarto-pub:
+    - id: 78e7a5d3-8e6f-4fb4-ab54-f19eaecc1579
+      url: 'https://quartopub.com/sites/uribo/arrow-speed-benchmark'

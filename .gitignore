@@ -4,4 +4,7 @@
 .Ruserdata
 README.html
 .httr-oauth
+*.html
 data-raw/typeB_tokushima_2022_10/
+hello_arrow_files
+speed_benchmark_files

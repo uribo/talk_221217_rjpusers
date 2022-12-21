@@ -10,6 +10,8 @@ code-fold: false
 この文書は2022年12月17日に開催された[R研究集会2022](https://rjpusers.connpass.com/event/266841/)での発表「Rによる大規模データの処理」の補足資料です。
 発表の中で扱った`{arrow}`パッケージによる大規模データの処理の実行速度を複数のRパッケージと比較した結果を示します。
 
+[arrow導入編](https://uribo.quarto.pub/hello-r-arrow/)
+
 ## 実行環境と検証内容
 
 ### 環境
