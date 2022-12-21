@@ -3,6 +3,16 @@ Rによる大規模データの処理
 
 2022年12月17日開催「[R研究集会2022](https://rjpusers.connpass.com/event/266841/)」での発表資料
 
+## スライド
+
+<p align="center">
+<a href="https://github.com/uribo/talk_221217_rjpusers/blob/main/slide/slide.pdf">PDF</a> |
+<a href="https://speakerdeck.com/s_uryu/introduction-to-r-arrow">スライド</a>
+</p>
+
+![](images/cover.jpeg)
+
+
 ## データ
 
 https://www.jartic.or.jp
