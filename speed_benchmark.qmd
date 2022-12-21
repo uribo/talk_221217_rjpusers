@@ -1,0 +1,311 @@
+---
+title: "大規模データの処理の実行速度の比較"
+format: html
+lang: "ja"
+toc: true
+highlight-style: github
+code-fold: false
+---
+
+この文書は2022年12月17日に開催された[R研究集会2022](https://rjpusers.connpass.com/event/266841/)での発表「Rによる大規模データの処理」の補足資料です。
+発表の中で扱った`{arrow}`パッケージによる大規模データの処理の実行速度を複数のRパッケージと比較した結果を示します。
+
+## 実行環境と検証内容
+
+### 環境
+
+ここでの検証結果は次の環境で行いました。
+
+- Apple M1 Mac (メモリ: 64GB)
+- `r R.version.string`
+
+### 検証内容
+
+データ読み込みと2つのデータ操作の実行速度を、{arrow}といくつかのパッケージ間で比較します。具体的な検証用のコードと実行速度のベンチマークの計測方法に関しては[GitHub上のコード](https://github.com/uribo/talk_221217_rjpusers/blob/main/data-raw/benchmark.R)を参照してください。
+
+1. csvファイルの読み込み... `arrow::read_csv_arrow()`, `readr::read_csv()`, `data.table::fread()`
+2. グループ化と集計
+3. 結合
+
+## パッケージの読み込み
+
+`{arrow}`パッケージの他に、処理速度の比較対象となるパッケージを読み込みます。
+
+```{r}
+#| warning: false
+library(arrow) # 10.0.1
+library(dplyr) # 1.0.10
+library(data.table) # 1.14.6
+library(readr) # 2.1.3
+library(dtplyr) # 1.2.2
+library(duckdb) # 0.6.1
+```
+
+```{r}
+library(ggplot2)
+source(here::here("R/plot.R"))
+```
+
+
+```{r}
+source(here::here("R/schema.R")) # 断面交通量情報データのためのスキーマ定義
+
+# ベンチマーク結果などの読み込み用
+pins_resources_local <-
+  pins::board_folder(here::here("data-raw"))
+```
+
+## 断面交通量情報データ
+
+- 公益財団法人日本道路交通情報センター https://www.jartic.or.jp が提供
+- 各都道府県警察が車両感知器などの計測機器で収集した断面交通量に関する情報を警察庁においてとりまとめたもの
+    - 毎月、都道府県警察(北海道警察は5方面)ごとに`.zip`ファイルが更新される
+    
+```{r}
+#| eval: false
+#| echo: true
+# 日本道路交通情報センター提供のデータを読み込むパッケージ
+remotes::install_github("uribo/jarticr")
+```
+
+各ファイルの中身は次のようになっています。
+
+```{r}
+dplyr::glimpse(
+  jarticr::read_jartic_traffic(
+    here::here("data-raw/typeB_tokushima_2022_10/徳島県警_202210.csv")))
+```
+
+- `datetime`: 時刻。5分単位で記録
+- `source_code`: 情報源コード
+- `location_no`: 計測地点番号
+- `location_name`: 計測地点名称
+- `meshcode10km`: 2次メッシュコード
+- `link_type`: リンク区分
+- `link_no`: リンク番号
+- `traffic`: 断面交通量。ある道路断面をある方向に通過する単位時間当たりの交通量（単位: 台）
+- `to_link_end_10m`: リンク終端からの距離
+- `link_ver`: リンクバージョン
+
+
+### 元データ（CSV）のサイズ
+
+断面交通量情報データを48ヶ月（2018年11月から2022年10月、4年）分収集したデータを使います。
+
+```{r}
+#| include: false
+# ref) data-raw/typeB_zip_files.R
+df_my_dropbox <- 
+  pins_resources_local |> 
+  pins::pin_read("typeB_zip_files") |> 
+  dplyr::mutate(size = fs::as_fs_bytes(size))
+
+typeB_zip_total_size <- 
+  sum(df_my_dropbox$size, 
+    fs::as_fs_bytes("4.13GB"), 
+    fs::as_fs_bytes("4.3GB"))
+```
+
+全体のcsvファイルの大きさは`.zip`圧縮時で`r as.character(typeB_zip_total_size)`となります。
+
+ベンチマークを測るために4つのデータを用意しました。なお、`Large`、`Huge`タイプでのcsvのファイルサイズは`.zip`圧縮時の大きさです。実際はこれより大きなサイズになることが予想されます。
+
+```{r}
+#| eval: true
+#| echo: false
+df_validation_sets <- 
+  pins_resources_local |> 
+  pins::pin_read("validation_metadata") |> 
+  mutate(across(ends_with("size"), 
+                .fns = ~ fs::as_fs_bytes(stringr::str_remove_all(., "[[:space:]]")))) |> 
+  as_tibble()
+
+df_validation_sets
+```
+
+## 実行速度の比較
+
+### 処理1: csvの読み込み
+
+Large, Hugeについてはcsvファイルを用意しなかったため、SmallとMediumでの結果を示します。
+
+Small, Mediumともに読み込みの速度は{data.table}パッケージの`fread()`関数が最も高速でした。2つのデータでの順位は{data.table}、{arrow}、{readr}の順となりました。
+
+::: {.panel-tabset}
+
+## Small
+
+```{r}
+task_input_small_res <- 
+  pins_resources_local |> 
+  pins::pin_read("benchmark_input_small")
+task_input_small_res
+```
+
+```{r}
+#| include: false
+p_input_small_speed <- 
+  task_input_small_res |> 
+  exp_compare_barplot(median) +
+  ylab("実行時間（秒）") +
+  labs(title = "タスク: csvファイルの読み込み",
+       subtitle = glue::glue("データサイズ: {df_validation_sets$type[1]} ({kansuji2arabic(df_validation_sets$nrow[1])}件)"))
+
+ggsave(here::here("images/input_speed_result_for_small.png"),
+       p_input_small_speed,
+         width = 7,
+         height = 5)
+```
+
+
+![](images/input_speed_result_for_small.png)
+
+## Medium
+
+```{r}
+task_input_medium_res <- 
+  pins_resources_local |> 
+  pins::pin_read("benchmark_input_medium")
+task_input_medium_res
+```
+
+```{r}
+#| include: false
+p_input_medium_speed <- 
+  task_input_medium_res |> 
+  exp_compare_barplot(median) +
+  ylab("実行時間（秒）") +
+  labs(title = "タスク: csvファイルの読み込み",
+       subtitle = glue::glue("データサイズ: {df_validation_sets$type[2]} ({kansuji2arabic(df_validation_sets$nrow[2])}件)"))
+
+ggsave(here::here("images/input_speed_result_for_medium.png"),
+       p_input_medium_speed,
+       width = 7,
+       height = 5)
+```
+
+![](images/input_speed_result_for_medium.png)
+
+:::
+
+### 処理2: グループ化と集計
+
+データへの操作を行う場合、{arrow}および{duckdb}を使うと他のパッケージよりも高速に処理できました。
+
+::: {.panel-tabset}
+
+## Small
+
+```{r}
+task_gs_small_res <- 
+  pins_resources_local |> 
+  pins::pin_read("benchmark_task_gs_small")
+task_gs_small_res
+```
+
+```{r}
+#| include: false
+p_gs_small_speed <- 
+  task_gs_small_res |> 
+  exp_compare_barplot(median) +
+  ylab("実行時間（秒）") +
+  labs(title = "タスク: 計測地点番号と10kmメッシュごとに断面交通量を合計",
+       subtitle = glue::glue("データサイズ: {df_validation_sets$type[1]} ({kansuji2arabic(df_validation_sets$nrow[1])}件)"))
+
+ggsave(here::here("images/group_summarise_speed_result_for_small.png"),
+       p_gs_small_speed,
+       width = 7,
+       height = 5)
+```
+
+![](images/group_summarise_speed_result_for_small.png)
+
+## Medium
+
+```{r}
+task_gs_medium_res <- 
+  pins_resources_local |> 
+  pins::pin_read("benchmark_task_gs_medium")
+task_gs_medium_res
+```
+
+```{r}
+#| include: false
+p_gs_medium_speed <- 
+  task_gs_medium_res |> 
+  exp_compare_barplot(median) +
+  ylab("実行時間（秒）") +
+  labs(title = "タスク: 計測地点番号と10kmメッシュごとに断面交通量を合計",
+       subtitle = glue::glue("データサイズ: {df_validation_sets$type[2]} ({kansuji2arabic(df_validation_sets$nrow[2])}件)"))
+
+ggsave(here::here("images/group_summarise_speed_result_for_medium.png"),
+       p_gs_medium_speed,
+       width = 7,
+       height = 5)
+```
+
+![](images/group_summarise_speed_result_for_medium.png)
+
+:::
+
+### 処理3: 結合
+
+結合処理ではSmallサイズのデータでは{dplyr}が最も高速に処理を終えましたが、Mediumサイズでは{arrow}が一番早い結果となりました。{duckdb}の利用が共通して遅い、という結果を示していますが、これは`to_duckdb()`関数の適用のタイミングの問題だと考えられます。タイミングを工夫することで{arrow}での処理速度に近づけることが期待できます。
+
+::: {.panel-tabset}
+
+## Small
+
+```{r}
+task_join_small_res <- 
+  pins_resources_local |> 
+  pins::pin_read("benchmark_task_join_small")
+task_join_small_res
+```
+
+
+```{r}
+#| include: false
+p_join_small_speed <- 
+  task_join_small_res |> 
+  exp_compare_barplot(median) +
+  ylab("実行時間（秒）") +
+  labs(title = "タスク: メッシュコードを持つデータと結合",
+       subtitle = glue::glue("データサイズ: {df_validation_sets$type[1]} ({kansuji2arabic(df_validation_sets$nrow[1])}件)"))
+
+ggsave(here::here("images/join_speed_result_for_small.png"),
+       p_join_small_speed,
+       width = 7,
+       height = 5)
+```
+
+![](images/join_speed_result_for_small.png)
+
+
+## Medium
+
+```{r}
+task_join_medium_res <-
+  pins_resources_local |>
+  pins::pin_read("benchmark_task_join_medium")
+task_join_medium_res
+```
+
+```{r}
+#| include: false
+p_join_medium_speed <- 
+  task_join_medium_res |> 
+  exp_compare_barplot(median) +
+  ylab("実行時間（秒）") +
+  labs(title = "タスク: メッシュコードを持つデータと結合",
+       subtitle = glue::glue("データサイズ: {df_validation_sets$type[2]} ({kansuji2arabic(df_validation_sets$nrow[2])}件)"))
+
+ggsave(here::here("images/join_speed_result_for_medium.png"),
+       p_join_medium_speed,
+       width = 7,
+       height = 5)
+```
+
+![](images/join_speed_result_for_medium.png)
+
+:::

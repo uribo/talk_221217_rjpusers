@@ -1,0 +1,209 @@
+---
+title: "arrowパッケージの基礎"
+format: html
+lang: "ja"
+toc: true
+highlight-style: github
+code-fold: false
+---
+
+この文書は2022年12月17日に開催された[R研究集会2022](https://rjpusers.connpass.com/event/266841/)での発表「Rによる大規模データの処理」の補足資料です。
+発表の中で扱った`{arrow}`パッケージの使い方を紹介します。
+
+スライド: https://speakerdeck.com/s_uryu/introduction-to-r-arrow
+
+## パッケージの読み込み
+
+`{arrow}`パッケージの他にいくつかのパッケージを利用します。
+
+```{r}
+#| warning: false
+library(arrow) # 10.0.1
+library(dplyr) # 1.0.10
+library(data.table) # 1.14.6
+```
+
+## {arrow}パッケージを使った処理の流れ
+
+{arrow}パッケージを使った処理は次の手順で行うことになります。
+
+1. データ（`.csv`や`.parquet`、`.arrow`）をArrow Tableオブジェクトに読み込む
+2. dplyrパッケージのデータ関数による操作・集計
+3. `collect()`関数によるデータフレームへの変換
+
+全体像を理解するために簡単な例を示します。
+
+```{r}
+#| include: false
+if (!file.exists(here::here("data/zoo.parquet"))) {
+  pins_resources_online <-
+    pins::board_url(c(
+      "tokushima_zoo_animals22" = "https://raw.githubusercontent.com/uribo/tokupon_ds/main/data-raw/tokushima_zoo_animals22.csv"))
+  pins_resources_online |> 
+    pins::pin_download("tokushima_zoo_animals22") |> 
+    readr::read_csv(col_types = "ccdd") |> 
+    write_parquet(here::here("data/zoo.parquet"))
+}
+```
+
+まず、データをArrowでのインメモリの処理を行うために読み込む必要があります。
+{arrow}ではcsvやparquetなどの形式のファイルを読みこみ、Arrow Tableオブジェクトとします。
+単一または複数のファイルを読み込む関数が用意されていますが、ここでは単一のparquetファイルを読み込むための関数`read_parquet()`を使います。
+
+```{r}
+d <- 
+  read_parquet(
+  here::here("data/zoo.parquet"),
+  # as_dat_frame = FALSEでArrow Tableオブジェクトになる
+  as_data_frame = FALSE)
+```
+
+オブジェクトのクラスを確認します。
+
+```{r}
+class(d)
+```
+
+この状態ではデータの値を参照することはできません。
+データの大きさ、データがどのような列を持っているのか（列名とデータタイプ）の情報が表示されるだけです。
+
+```{r}
+d
+```
+
+Arrow Tableオブジェクトに対して、{dplyr}の関数を使ったデータ操作が適用できます。{arrow}では{dplyr}の他に{stringr}や{lubridate}、組み込みのRの関数をラップした関数が提供されており、データフレームを操作するようにデータへの処理を行うことができます。
+
+```{r}
+# dplyrのデータ操作を行う
+result <- 
+  d |> 
+  select(name, taxon, body_length_cm) |> 
+  filter(taxon %in% c("霊長類", "齧歯類", "鳥類")) |>
+  group_by(taxon) |> 
+  summarise(body_length_mean = mean(body_length_cm))
+
+result
+```
+
+この状態でもデータの実の値は表示されません。
+しかしデータに処理を加える前の状態とは異なることがわかります。
+具体的には一行目の出力が`Table`から`Table (query)`と変化した点、
+列名の表示が絞り込まれている点です。
+
+では、記述した処理をデータに適用するにはどうするのでしょうか。
+{arrow}ではデータベース上のデータを{dplyr}の関数を使って操作する際や{dplyr}をバックエンドにdata.tableオブジェクトを操作する{dtplyr}のように、`collect()`関数によって処理を適用します。
+これにより{arrow}のオブジェクトからデータフレームを得ることができます。
+
+```{r}
+result |> 
+  # データフレームとして返り値を得る
+  collect()
+```
+
+### {duckdb}パッケージとの連携
+
+{arrow}ではArrow C++へのインターフェイスを提供し、`list_compute_functions()`によってその関数の一覧を確認することができます。またArrow query engineと呼ばれる{dplyr}などの関数は`?acero`により確認できます。
+一方、その他の多くのRの関数は{arrow}で直接利用できません。
+その場合、{arrow}は一度データをデータフレームに変換してから処理を継続するか、エラーで処理を停止させることになります。
+
+例を示すために別のデータ（徳島県の2022年10月の断面交通量）を用意します。
+
+```{r}
+d <-
+  read_parquet(
+    here::here("data/typeB/36_tokushima/year=2022/month=10/part-0.parquet"),
+    as_data_frame = FALSE)
+```
+
+まずはデータフレームに変換する場合です。この場合、警告が出るものの処理は行われます。大きなデータを扱う場合には、Arrowの処理の恩恵を受けることができないために予想以上に時間がかかることがあるかもしれません。
+
+```{r}
+d |> 
+  select(datetime) |>
+  mutate(is_jholiday = zipangu::is_jholiday(datetime))
+```
+
+続いて処理が停止される例です。
+
+```{r}
+#| error: true
+d |> 
+  group_by(location_no) |> 
+  slice_min(order_by = traffic, n = 1)
+```
+
+このような時にはArrowオブジェクトを{duckbd}パッケージが提供する仮想的なDuckDBオブジェクトに変換することで処理を継続できることがあります。
+
+```{r}
+d |> 
+  group_by(location_no) |> 
+  # {duckdb}へデータを渡す
+  to_duckdb() |> 
+  slice_min(order_by = traffic, n = 1) |> 
+  collect()
+```
+
+### 複数のファイルを一度に読み込む
+
+{arrow}では複数のcsv、parquetファイルを読み込むための関数、`open_dataset()`を用意しています。この関数の利用により、共通の列配列をもつデータを一度に読み込むことができます。
+
+```{r}
+# 東京都の2021年のデータ(12ヶ月分)を読み込む
+open_dataset(here::here("data/typeB/13_tokyo/year=2021/"))
+
+fs::dir_tree(
+  here::here("data/typeB/13_tokyo/year=2021/"))
+```
+
+複数のファイルを効率的に管理するための機構として、ArrowではHive形式(`key=value`)のパーティショニングを採用しています。ここでのパーティショニングとは、一つの大きなデータセットを複数の細かなファイルに分割する戦略を意味します。例えば4年間全国の断面交通量情報データの場合では、データを年や月、地域に分けることが考えられます。これにより、必要なデータに素早くアクセス、処理の負担が軽減できることが期待できます。
+
+次のコードは、年と月を表す`year`、`month`の列をもつデータを年月でパーティショニングした状態でparquet形式で保存する例です。
+
+```{r}
+#| eval: false
+#| echo: true
+# パーティショニングの例
+# 
+d |> 
+  write_dataset(path = "data",
+                partitioning = c("year", "month"))
+```
+
+これにより次のようなフォルダ構成ができあがります。
+
+```
+data/
+  - year=2021
+      - month=1
+          - part-0.parquet
+      - month=2
+          - part-0.parquet
+  ...
+  - year=2022
+      - month=1
+          - part-0.parquet
+      - month=2
+          - part-0.parquet
+```
+
+### スキーマの指定
+
+Arrowではデータが列ごとに決まった型（まとまった配置）であることを前提とします。そのため列のデータタイプは細かく定義されることになります。
+自動的にデータタイプが与えられますが、スキーマの指定によって任意のデータタイプを列に割り振ることができます。
+
+```{r}
+source(here::here("R/schema.R")) # 断面交通量情報データのためのスキーマ定義
+
+jartic_typeB_schema
+```
+
+```{r}
+open_dataset(here::here("data/typeB/13_tokyo/year=2021/month=1/"),
+               schema = jartic_typeB_schema)
+```
+
+## session information
+
+```{r}
+sessioninfo::session_info(info = "platform")
+```
