@@ -4,6 +4,7 @@ library(dplyr) # 1.0.10
 library(data.table) # 1.14.6
 library(dtplyr) # 1.2.2
 library(duckdb) # 0.6.1
+library(bench)
 source(here::here("R/task.R"))
 
 pins_resources_local <- 
@@ -70,7 +71,8 @@ df_benchmark_input_medium <-
   `data.table::fread` = data.table::fread(input_csv$medium),
   `arrow::read_csv_arrow` = arrow::read_csv_arrow(input_csv$medium),
   iterations = 3,
-  check = FALSE)
+  check = FALSE,
+  time_unit = "s")
 
 pins_resources_local |> 
   pins::pin_write(
