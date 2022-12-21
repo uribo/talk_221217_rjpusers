@@ -1,0 +1,9 @@
+file: validation_metadata.csv
+file_size: 283
+pin_hash: 133f0abf734ddbfe
+type: csv
+title: 'validation_metadata: a pinned 4 x 7 data frame'
+description: ベンチマークを取るデータの概要
+tags: ~
+created: 20221221T060133Z
+api_version: 1.0
